@@ -25,8 +25,8 @@ def softmax(Z: np.ndarray) -> np.ndarray:
     P : np.ndarray, shape (N, K)
         Each row sums to 1.
     """
-    # TODO
-    raise NotImplementedError
+    P = np.exp(Z) / np.sum(np.exp(Z), axis=1, keepdims=True)
+    return P
 
 
 def one_hot(y: np.ndarray, K: int) -> np.ndarray:
@@ -38,7 +38,10 @@ def one_hot(y: np.ndarray, K: int) -> np.ndarray:
     Y : np.ndarray, shape (N, K)
     """
     # TODO
-    raise NotImplementedError
+    N = y.shape[0]
+    Y = np.zeros((N, K))
+    Y[np.arange(N), y] = 1
+    return Y
 
 
 def softmax_loss(X: np.ndarray, y: np.ndarray, W: np.ndarray, reg: float = 0.0) -> float:
@@ -61,7 +64,12 @@ def softmax_loss(X: np.ndarray, y: np.ndarray, W: np.ndarray, reg: float = 0.0) 
     loss : float
     """
     # TODO
-    raise NotImplementedError
+    N = X.shape[0]
+    logits = X @ W[1:] + W[0]
+    loss = -np.mean(np.sum(y * logits, axis=1))
+    reg_loss = reg / 2 * np.sum(W[1:] ** 2)
+    loss = loss + reg_loss
+    return float(loss)
 
 
 def softmax_grad(X: np.ndarray, y: np.ndarray, W: np.ndarray, reg: float = 0.0) -> np.ndarray:
@@ -72,8 +80,14 @@ def softmax_grad(X: np.ndarray, y: np.ndarray, W: np.ndarray, reg: float = 0.0) 
     -------
     grad : np.ndarray, shape (d+1, K)
     """
-    # TODO
-    raise NotImplementedError
+    N = X.shape[0]
+    logits = X @ W[1:] + W[0]
+    P = softmax(logits)
+    grad_b = np.mean(P - one_hot(y, W.shape[1]), axis=0)
+    grad_w = (X.T @ (P - one_hot(y, W.shape[1]))) / N + reg * W[1:]
+    grad = np.concatenate([grad_b, grad_w], axis=0)
+    return grad
+    
 
 
 def predict_proba_softmax(X: np.ndarray, W: np.ndarray) -> np.ndarray:
@@ -85,7 +99,8 @@ def predict_proba_softmax(X: np.ndarray, W: np.ndarray) -> np.ndarray:
     P : np.ndarray, shape (N, K)
     """
     # TODO
-    raise NotImplementedError
+    pred = softmax(X @ W[1:] + W[0])
+    return pred
 
 
 def predict_softmax(X: np.ndarray, W: np.ndarray) -> np.ndarray:
@@ -97,7 +112,9 @@ def predict_softmax(X: np.ndarray, W: np.ndarray) -> np.ndarray:
     yhat : np.ndarray, shape (N,)
     """
     # TODO
-    raise NotImplementedError
+    pred = predict_proba_softmax(X, W)
+    yhat = np.argmax(pred, axis=1)
+    return yhat
 
 
 def train_softmax(
@@ -126,7 +143,29 @@ def train_softmax(
       - "epochs": int
     """
     # TODO
-    raise NotImplementedError
+    w = np.zeros(X.shape[1] + 1)
+    loss_history = []
+    err_history = []
+    rng = np.random.default_rng(seed)
+    for epoch in range(max_epochs):
+        if batch_size == 0:
+            grad = softmax_grad(X, y, w, reg)
+            w = w - step_size * grad
+        else:
+            indices = rng.permutation(X.shape[0])
+            for i in range(0, X.shape[0], batch_size):
+                indices_batch = indices[i:i+batch_size]
+                X_batch = X[indices_batch]
+                y_batch = y[indices_batch]
+                grad = softmax_grad(X_batch, y_batch, w, reg)
+                w = w - step_size * grad
+        loss = softmax_loss(X, y, w, reg)
+        loss_history.append(loss)
+        err = np.mean(predict_softmax(X, w) != y)
+        err_history.append(err)
+        if epoch > 0 and abs(loss_history[-1] - loss_history[-2]) < tol:
+            break
+    return {"w": w, "loss_history": loss_history, "err_history": err_history, "epochs": epoch}
 
 
 if __name__ == "__main__":
