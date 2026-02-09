@@ -66,7 +66,9 @@ def softmax_loss(X: np.ndarray, y: np.ndarray, W: np.ndarray, reg: float = 0.0) 
     # TODO
     N = X.shape[0]
     logits = X @ W[1:] + W[0]
-    loss = -np.mean(np.sum(y * logits, axis=1))
+    P = softmax(logits)
+    log_likelihood = -np.log(P[np.arange(N), y])
+    loss = np.mean(log_likelihood)
     reg_loss = reg / 2 * np.sum(W[1:] ** 2)
     loss = loss + reg_loss
     return float(loss)
@@ -83,9 +85,9 @@ def softmax_grad(X: np.ndarray, y: np.ndarray, W: np.ndarray, reg: float = 0.0) 
     N = X.shape[0]
     logits = X @ W[1:] + W[0]
     P = softmax(logits)
-    grad_b = np.mean(P - one_hot(y, W.shape[1]), axis=0)
+    grad_b = np.mean(P - one_hot(y, W.shape[1]), axis=0, keepdims=True)
     grad_w = (X.T @ (P - one_hot(y, W.shape[1]))) / N + reg * W[1:]
-    grad = np.concatenate([grad_b, grad_w], axis=0)
+    grad = np.vstack([grad_b, grad_w])
     return grad
     
 
@@ -143,7 +145,7 @@ def train_softmax(
       - "epochs": int
     """
     # TODO
-    w = np.zeros(X.shape[1] + 1)
+    w = np.zeros((X.shape[1] + 1, K))
     loss_history = []
     err_history = []
     rng = np.random.default_rng(seed)
@@ -165,7 +167,7 @@ def train_softmax(
         err_history.append(err)
         if epoch > 0 and abs(loss_history[-1] - loss_history[-2]) < tol:
             break
-    return {"w": w, "loss_history": loss_history, "err_history": err_history, "epochs": epoch}
+    return {"W": w, "loss_history": loss_history, "err_history": err_history, "epochs": epoch}
 
 
 if __name__ == "__main__":
