@@ -10,6 +10,7 @@ Autograder imports these functions directly. Keep names/signatures unchanged.
 from __future__ import annotations
 from typing import Tuple, Dict, Any
 import numpy as np
+import pandas as pd
 
 
 def load_iris_binary(path: str) -> Tuple[np.ndarray, np.ndarray]:
@@ -27,7 +28,16 @@ def load_iris_binary(path: str) -> Tuple[np.ndarray, np.ndarray]:
         Labels in {0,1}.
     """
     # TODO
-    raise NotImplementedError
+    data = np.loadtxt(path)
+    X = data[:, :4]
+    y = data[:, 4]
+    mask = (y == 0) | (y == 1)
+    X = X[mask]
+    y = y[mask]
+    X = (X - X.mean(axis=0)) / (X.std(axis=0) + 1e-12)
+    return X, y
+
+    
 
 
 
@@ -40,7 +50,8 @@ def sigmoid(z: np.ndarray) -> np.ndarray:
     s : np.ndarray, same shape as z
     """
     # TODO
-    raise NotImplementedError
+    s = 1 / (1 + np.exp(-z))
+    return s
 
 
 def logistic_loss(X: np.ndarray, y: np.ndarray, w: np.ndarray, reg: float = 0.0) -> float:
@@ -61,7 +72,14 @@ def logistic_loss(X: np.ndarray, y: np.ndarray, w: np.ndarray, reg: float = 0.0)
     loss : float
     """
     # TODO
-    raise NotImplementedError
+    z = w[0] + X @ w[1:]
+    pred = sigmoid(z)
+    eps = 1e-12
+    pred = np.clip(pred, eps, 1 - eps)
+    N = X.shape[0]
+    loss = -np.mean(y * np.log(pred) + (1 - y) * np.log(1 - pred))
+    loss = loss + reg / 2 * np.sum(w[1:] ** 2)
+    return float(loss)
 
 
 def logistic_grad(X: np.ndarray, y: np.ndarray, w: np.ndarray, reg: float = 0.0) -> np.ndarray:
@@ -73,7 +91,17 @@ def logistic_grad(X: np.ndarray, y: np.ndarray, w: np.ndarray, reg: float = 0.0)
     grad : np.ndarray, shape (d+1,)
     """
     # TODO
-    raise NotImplementedError
+    N = X.shape[0]
+    z = w[0] + X @ w[1:]
+    pred = sigmoid(z)
+    diff = pred - y
+    grad = np.zeros_like(w)
+    grad[0] = np.mean(diff)
+    grad[1:] = (X.T @ diff) / N + reg * w[1:]
+    return grad
+    
+
+
 
 
 def predict_proba(X: np.ndarray, w: np.ndarray) -> np.ndarray:
@@ -85,7 +113,9 @@ def predict_proba(X: np.ndarray, w: np.ndarray) -> np.ndarray:
     p : np.ndarray, shape (N,)
     """
     # TODO
-    raise NotImplementedError
+    z = w[0] + X @ w[1:]
+    pred = sigmoid(z)
+    return pred
 
 
 def predict(X: np.ndarray, w: np.ndarray, threshold: float = 0.5) -> np.ndarray:
@@ -97,7 +127,9 @@ def predict(X: np.ndarray, w: np.ndarray, threshold: float = 0.5) -> np.ndarray:
     yhat : np.ndarray, shape (N,)
     """
     # TODO
-    raise NotImplementedError
+    pred = predict_proba(X, w)
+    yhat = np.where(pred >= threshold, 1, 0)
+    return yhat
 
 
 def train_logreg(
@@ -125,7 +157,31 @@ def train_logreg(
       - "epochs": int
     """
     # TODO
-    raise NotImplementedError
+    w = np.zeros(X.shape[1] + 1)
+    loss_history = []
+    err_history = []
+    rng = np.random.default_rng(seed)
+    for epoch in range(max_epochs):
+        if batch_size == 0:
+            grad = logistic_grad(X, y, w, reg)
+            w = w - step_size * grad
+        else:
+            indices = rng.permutation(X.shape[0])
+            for i in range(0, X.shape[0], batch_size):
+                indices_batch = indices[i:i+batch_size]
+                X_batch = X[indices_batch]
+                y_batch = y[indices_batch]
+                grad = logistic_grad(X_batch, y_batch, w, reg)
+                w = w - step_size * grad
+        loss = logistic_loss(X, y, w, reg)
+        loss_history.append(loss)
+        err = np.mean(predict(X, w) != y)
+        err_history.append(err)
+        if epoch > 0 and abs(loss_history[-1] - loss_history[-2]) < tol:
+            break
+    return {"w": w, "loss_history": loss_history, "err_history": err_history, "epochs": epoch}
+
+    
 
 
 if __name__ == "__main__":
