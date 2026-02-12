@@ -58,7 +58,7 @@ def hinge_grad(X: np.ndarray, y: np.ndarray, w: np.ndarray, C: float = 1.0) -> n
     active_mask = (1-y*out > 0)
     grad_weights = -X.T @ (y * active_mask) + weights
     grad_bias = -np.sum(y * active_mask) * C
-    return np.concatenate([grad_bias, grad_weights])
+    return np.concatenate(([grad_bias], grad_weights))
 
 
 def predict_svm(X: np.ndarray, w: np.ndarray) -> np.ndarray:
@@ -73,7 +73,11 @@ def predict_svm(X: np.ndarray, w: np.ndarray) -> np.ndarray:
         Entries in {-1, +1}.
     """
     # TODO
-    raise NotImplementedError
+    weights = w[1:]
+    bias = w[0]
+    out = bias + X @ weights
+    yhat = np.where(out >= 0, 1, -1)
+    return yhat
 
 
 def train_svm_hinge(
@@ -100,8 +104,39 @@ def train_svm_hinge(
       - "err_history": list[float] training error rate
       - "epochs": int
     """
-    # TODO
-    raise NotImplementedError
+    rng = np.random.default_rng(seed)
+    loss_history = []
+    err_history = []
+    N, d = X.shape
+    w = np.zeros(d + 1)
+
+    for epoch in range(max_epochs):
+        if batch_size == 0:
+            grad = hinge_grad(X, y, w, C)
+            w = w - step_size * grad
+        else:
+            indices = rng.permutation(N)
+            for i in range(0, N, batch_size):
+                batch_idx = indices[i : i + batch_size]
+                X_batch = X[batch_idx]
+                y_batch = y[batch_idx]
+                grad = hinge_grad(X_batch, y_batch, w, C)
+                w = w - step_size * grad
+
+        loss = hinge_loss(X, y, w, C)
+        loss_history.append(loss)
+        err = float(np.mean(predict_svm(X, w) != y))
+        err_history.append(err)
+
+        if epoch > 0 and abs(loss_history[-1] - loss_history[-2]) < tol:
+            break
+
+    return {
+        "w": w,
+        "loss_history": loss_history,
+        "err_history": err_history,
+        "epochs": len(loss_history),
+    }
 
 
 if __name__ == "__main__":
