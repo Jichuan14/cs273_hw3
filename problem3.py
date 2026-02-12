@@ -33,7 +33,12 @@ def hinge_loss(X: np.ndarray, y: np.ndarray, w: np.ndarray, C: float = 1.0) -> f
     loss : float
     """
     # TODO
-    raise NotImplementedError
+    weights = w[1:]
+    bias = w[0]
+    output = bias + X @ weights
+    loss = np.sum(np.maximum(0, 1-y*output))
+    reg_loss = 1 / 2 * np.sum(weights**2)
+    return float(C * loss + reg_loss)
 
 
 def hinge_grad(X: np.ndarray, y: np.ndarray, w: np.ndarray, C: float = 1.0) -> np.ndarray:
@@ -47,7 +52,13 @@ def hinge_grad(X: np.ndarray, y: np.ndarray, w: np.ndarray, C: float = 1.0) -> n
     grad : np.ndarray, shape (d+1,)
     """
     # TODO
-    raise NotImplementedError
+    weights = w[1:]
+    bias = w[0]
+    out = bias + X @ weights
+    active_mask = (1-y*out > 0)
+    grad_weights = -X.T @ (y * active_mask) + weights
+    grad_bias = -np.sum(y * active_mask) * C
+    return np.concatenate([grad_bias, grad_weights])
 
 
 def predict_svm(X: np.ndarray, w: np.ndarray) -> np.ndarray:
