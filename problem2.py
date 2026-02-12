@@ -25,7 +25,9 @@ def softmax(Z: np.ndarray) -> np.ndarray:
     P : np.ndarray, shape (N, K)
         Each row sums to 1.
     """
-    P = np.exp(Z) / np.sum(np.exp(Z), axis=1, keepdims=True)
+    Z_shifted = Z - np.max(Z, axis=1, keepdims=True)
+    exp_Z = np.exp(Z_shifted)
+    P = exp_Z / np.sum(exp_Z, axis=1, keepdims=True)
     return P
 
 
@@ -147,7 +149,7 @@ def train_softmax(
     # TODO
     w = np.zeros((X.shape[1] + 1, K))
     loss_history = []
-    err_history = []
+    acc_history = []
     rng = np.random.default_rng(seed)
     for epoch in range(max_epochs):
         if batch_size == 0:
@@ -163,11 +165,11 @@ def train_softmax(
                 w = w - step_size * grad
         loss = softmax_loss(X, y, w, reg)
         loss_history.append(loss)
-        err = np.mean(predict_softmax(X, w) != y)
-        err_history.append(err)
+        acc = np.mean(predict_softmax(X, w) == y)
+        acc_history.append(acc)
         if epoch > 0 and abs(loss_history[-1] - loss_history[-2]) < tol:
             break
-    return {"W": w, "loss_history": loss_history, "err_history": err_history, "epochs": epoch}
+    return {"W": w, "loss_history": loss_history, "acc_history": acc_history, "epochs": epoch + 1}
 
 
 if __name__ == "__main__":

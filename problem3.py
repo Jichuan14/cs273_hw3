@@ -33,12 +33,13 @@ def hinge_loss(X: np.ndarray, y: np.ndarray, w: np.ndarray, C: float = 1.0) -> f
     loss : float
     """
     # TODO
+    N = X.shape[0]
     weights = w[1:]
     bias = w[0]
     output = bias + X @ weights
-    loss = np.sum(np.maximum(0, 1-y*output))
-    reg_loss = 1 / 2 * np.sum(weights**2)
-    return float(C * loss + reg_loss)
+    hinge = np.maximum(0.0, 1.0 - y * output)
+    reg_loss = 0.5 * np.sum(weights ** 2)
+    return float(reg_loss + C * np.mean(hinge))
 
 
 def hinge_grad(X: np.ndarray, y: np.ndarray, w: np.ndarray, C: float = 1.0) -> np.ndarray:
@@ -52,12 +53,14 @@ def hinge_grad(X: np.ndarray, y: np.ndarray, w: np.ndarray, C: float = 1.0) -> n
     grad : np.ndarray, shape (d+1,)
     """
     # TODO
+    N = X.shape[0]
     weights = w[1:]
     bias = w[0]
     out = bias + X @ weights
-    active_mask = (1-y*out > 0)
-    grad_weights = -X.T @ (y * active_mask) + weights
-    grad_bias = -np.sum(y * active_mask) * C
+    active_mask = (1.0 - y * out > 0.0)
+    active_y = y * active_mask
+    grad_weights = weights - (C / N) * (X.T @ active_y)
+    grad_bias = -(C / N) * np.sum(active_y)
     return np.concatenate(([grad_bias], grad_weights))
 
 
